@@ -451,34 +451,14 @@ func (p *parser) parseFileHeader() []*element.Element {
 		return nil
 	}
 
-	// (0002,0000) MetaElementGroupLength
-	metaElem := p.ParseNext(ParseOptions{})
-	if p.decoder.Error() != nil {
-		return nil
-	}
-	if metaElem.Tag != dicomtag.FileMetaInformationGroupLength {
-		p.decoder.SetErrorf("MetaElementGroupLength not found; insteadfound %s", metaElem.Tag.String())
-	}
-	metaLength, err := metaElem.GetInt()
-	if err != nil {
-		p.decoder.SetErrorf("Failed to read int64 in MetaElementGroupLength: %v", err)
-		return nil
-	}
-	if p.decoder.Len() <= 0 {
-		p.decoder.SetErrorf("No data element found")
-		return nil
-	}
-	metaElems := []*element.Element{metaElem}
-
-	// Read meta tags
-	p.decoder.PushLimit(metaLength)
-	defer p.decoder.PopLimit()
+	var metaElems []*element.Element
+	var elem *element.Element
 	for p.decoder.Len() > 0 {
-		elem := p.ParseNext(ParseOptions{})
-		if p.decoder.Error() != nil {
+		elem = p.ParseNext(ParseOptions{})
+		metaElems = append(metaElems, elem)
+		if p.decoder.Error() != nil || elem.Tag.Group != 0x0002 {
 			break
 		}
-		metaElems = append(metaElems, elem)
 		dicomlog.Vprintf(2, "dicom.parseFileHeader: Meta elem: %v, len %v", elem.String(), p.decoder.Len())
 	}
 	return metaElems
